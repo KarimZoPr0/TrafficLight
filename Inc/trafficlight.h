@@ -39,7 +39,7 @@ enum street_direction_flags_t
 
 enum street_direction_groups_t
 {
-    // Individual direction groups
+    // Individual groups
     TL1_Group = TL1_Red | TL1_Yellow | TL1_Green,
     TL2_Group = TL2_Red | TL2_Yellow | TL2_Green,
     TL3_Group = TL3_Red | TL3_Yellow | TL3_Green,
@@ -47,15 +47,19 @@ enum street_direction_groups_t
     PL1_Group = PL1_Red | PL1_Blue | PL1_Green,
     PL2_Group = PL2_Red | PL2_Blue | PL2_Green,
 
-    // Specific color groups for pedestrians
+    // Color groups for pedestrians
     PL_Red_Group   = PL1_Red | PL2_Red,
     PL_Green_Group = PL1_Green | PL2_Green,
     PL_Blue_Group  = PL1_Blue | PL2_Blue,
 
-    // Specific color groups for traffic lights
+    // Color groups for traffic lights
     TL_Red_Group    = TL1_Red | TL2_Red | TL3_Red | TL4_Red,
     TL_Orange_Group = TL1_Yellow | TL2_Yellow | TL3_Yellow | TL4_Yellow,
     TL_Green_Group  = TL1_Green | TL2_Green | TL3_Green | TL4_Green,
+
+    // direction groups for traffic lights
+    TL_Vertical_Group   = TL1_Green | TL3_Green | TL2_Red | TL4_Red,
+    TL_Horizontal_Group = TL2_Green | TL4_Green | TL1_Red | TL3_Red,
 
     // All traffic lights and pedestrian lights
     TL_Group = TL1_Group | TL2_Group | TL3_Group | TL4_Group,

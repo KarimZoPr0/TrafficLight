@@ -2,12 +2,26 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : Main program integrating Task 1 and Task 2 requirements
   ******************************************************************************
   * @attention
   *
-  * This code implements the requirements specified:
-  * R1.1 - R1.6 using a state machine and timing logic.
+  * This code implements:
+  * - Task 1 (R1.1–R1.6): Pedestrian crossing with toggle indicator.
+  * - Task 2 (R2.1–R2.8): Road crossing logic (vertical/horizontal lanes), timing.
+  *
+  * Initialization (R1.1 + R2.8):
+  * - Ped red, vertical green, horizontal red.
+  *
+  * Pedestrian request:
+  * - Indicator toggle (R1.2), after pedestrianDelay cars red (R1.3), ped green (R1.4).
+  * - After walkingDelay, cars green again (R1.5, R1.6).
+  *
+  * Idle (no ped):
+  * - If no cars, switch allowed direction every greenDelay (R2.4).
+  * - If car waits at red, either wait redDelayMax or switch immediately if no cars on allowed side (R2.6,R2.7).
+  * - Only one direction green (R2.2), no left turns scenario (R2.1).
+  * - Remain green if cars active (R2.5).
   *
   ******************************************************************************
   */
@@ -22,7 +36,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
-#include "trafficlight.h" // Must define set_traffic_light and light groups
+#include "trafficlight.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -30,76 +44,110 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+#define DEBOUNCE_TIME 50
 /* USER CODE BEGIN PD */
-#define DEBOUNCE_TIME    50
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-traffic_light_context_t ctx = {0};
+static traffic_light_context_t ctx = {0};
+
+// Timings
+static uint32_t toggleFreq = 250; // R1.2
+static uint32_t pedestrianDelay = 3000; // R1.3
+static uint32_t walkingDelay = 5000; // R1.4
+static uint32_t orangeDelay = 3000; // R1.6
+static uint32_t greenDelay = 4000; // R2.4
+static uint32_t redDelayMax = 5000; // R2.6
+
+// Directions: 0 = vertical, 1 = horizontal
+static int allowed_axis = 0;
+static uint32_t last_direction_switch = 0;
+static uint32_t axis_table[2] = {TL_Vertical_Group, TL_Horizontal_Group};
+
+// Car activity
+static int active_vertical_cars = 0;
+static int active_horizontal_cars = 0;
+
+// State machine
+static traffic_state_t state = STATE_IDLE;
+static uint32_t button_press_time = 0;
+static uint32_t last_toggle_time = 0;
+static uint32_t toggle_state = 0;
+static uint32_t toggling = 0;
+static uint32_t state_start_time = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
-// Transition cars from Green->Orange->Red or Red->Orange->Green
-// Returns 1 if transition done, 0 if still waiting.
-int handle_car_transition(uint32_t current_time, uint32_t start_time,uint32_t to_red, uint32_t orangeDelay)
+// Toggle pedestrian indicator
+static void toggle_ped_indicator(uint32_t now)
 {
-    // R1.6: A car signal transitions via orange for orangeDelay ms.
-    // If to_red = 1, we go Green->Orange->Red
-    // If to_red = 0, we go Red->Orange->Green
-
-    // Calculate how long we've been in this transition
-    uint32_t elapsed = current_time - start_time;
-
-    if (elapsed < orangeDelay)
+    if (toggling && now - last_toggle_time >= toggleFreq)
     {
-        // During orange phase
-        if (to_red)
-        {
-            // from Green->Orange
-            set_traffic_light(&ctx, ctx.flags & ~TL_Green_Group | TL_Orange_Group | PL_Red_Group);
-        }
-        else
-        {
-            // from Red->Orange
-            set_traffic_light(&ctx, ctx.flags & ~TL_Red_Group | TL_Orange_Group | PL_Red_Group);
-        }
-        return 0; // not finished yet
+        last_toggle_time = now;
+        set_traffic_light(&ctx, ctx.flags ^ PL_Blue_Group);
+        toggle_state ^= 1;
+    }
+}
+
+// Handle redDelayMax (R2.6,R2.7)
+static void handle_red_delay_max(uint32_t now)
+{
+    static uint32_t red_wait_start = 0;
+    int allowed_cars = (allowed_axis == 0) ? active_vertical_cars : active_horizontal_cars;
+    int disallowed_cars = (allowed_axis == 0) ? active_horizontal_cars : active_vertical_cars;
+
+    // If no cars in the disallowed direction, no waiting needed
+    if (!disallowed_cars)
+    {
+        red_wait_start = 0;
+        return;
     }
 
-    // After orangeDelay, finalize transition
-    if (to_red)
+    // If disallowed direction has cars, but allowed direction doesn't,
+    // switch immediately without waiting.
+    if (!allowed_cars)
     {
-        // Cars red, pedestrian could turn green after this
-        set_traffic_light(&ctx, ctx.flags & ~(TL_Green_Group | TL_Orange_Group) | TL_Red_Group);
+        allowed_axis ^= 1;
+        last_direction_switch = now;
+        set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+        red_wait_start = 0;
+        return;
     }
-    else
+
+    // Both allowed and disallowed directions have cars.
+    // Start or continue waiting until redDelayMax is reached.
+    if (red_wait_start == 0)
     {
-        // Cars green, pedestrian must be red here
-        set_traffic_light(&ctx, ctx.flags & ~(TL_Red_Group | TL_Orange_Group) | TL_Green_Group | PL_Red_Group);
+        red_wait_start = now;
     }
-    return 1; // transition done
+    else if (now - red_wait_start >= redDelayMax)
+    {
+        allowed_axis ^= 1;
+        last_direction_switch = now;
+        set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+        red_wait_start = 0;
+    }
 }
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 int main(void)
 {
-    /* MCU Configuration--------------------------------------------------------*/
+    /* USER CODE BEGIN 1 */
+    /* USER CODE END 1 */
+
     HAL_Init();
     SystemClock_Config();
     MX_GPIO_Init();
@@ -107,125 +155,125 @@ int main(void)
     MX_SPI3_Init();
 
     /* USER CODE BEGIN 2 */
-
-    // Set lights for initial condition (R1.1)
-    set_traffic_light(&ctx, TL_Green_Group | PL_Red_Group);
-
-    // Configurable timings
-    uint32_t toggleFreq = 250; // R1.2: toggling frequency of the indicator
-    uint32_t pedestrianDelay = 3000; // R1.3: time after button press to have cars red
-    uint32_t walkingDelay = 5000; // R1.4: how long pedestrian signal stays green
-    uint32_t orangeDelay = 3000; // R1.6: how long orange lasts in transitions
-
-    // State machine variables
-    traffic_state_t state = STATE_IDLE;
-    uint32_t button_press_time = 0; // When the button was pressed
-    uint32_t last_toggle_time = 0; // For indicator toggling
-    uint32_t toggle_state = 0; // 0: off, 1: on
-    uint32_t toggling = 0; // Are we currently toggling indicator?
-    uint32_t state_start_time = 0; // Generic timer to track state transitions
-
+    set_traffic_light(&ctx, TL_Vertical_Group | PL_Red_Group); // vertical green, ped red
+    allowed_axis = 0;
+    last_direction_switch = HAL_GetTick();
     /* USER CODE END 2 */
+
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1)
     {
-        uint32_t current_time = HAL_GetTick();
+        uint32_t now = HAL_GetTick();
 
-        // Handle state machine
+        // Read car inputs (active-low)
+        uint8_t tl1_active = HAL_GPIO_ReadPin(TL1_Car_GPIO_Port, TL1_Car_Pin) == GPIO_PIN_RESET;
+        uint8_t tl3_active = HAL_GPIO_ReadPin(TL3_Car_GPIO_Port, TL3_Car_Pin) == GPIO_PIN_RESET;
+        uint8_t tl2_active = HAL_GPIO_ReadPin(TL2_Car_GPIO_Port, TL2_Car_Pin) == GPIO_PIN_RESET;
+        uint8_t tl4_active = HAL_GPIO_ReadPin(TL4_Car_GPIO_Port, TL4_Car_Pin) == GPIO_PIN_RESET;
+
+        active_vertical_cars = tl1_active || tl3_active;
+        active_horizontal_cars = tl2_active || tl4_active;
+
+        // State machine for Task 1
         switch (state)
         {
         case STATE_IDLE:
-            // Cars green, Ped red
-            // Waiting for button press handled above
-            // No toggling in this state
-            // Check button press (debounced)
-            static uint32_t last_press_check = 0;
-            if (current_time - last_press_check > DEBOUNCE_TIME)
             {
-                last_press_check = current_time;
-
-                if (HAL_GPIO_ReadPin(PL1_Switch_GPIO_Port, PL1_Switch_Pin) == GPIO_PIN_RESET ||
-                    HAL_GPIO_ReadPin(PL2_Switch_GPIO_Port, PL2_Switch_Pin) == GPIO_PIN_RESET)
+                // Switch direction if_needed
+                if (!active_vertical_cars && !active_horizontal_cars && now - last_direction_switch >= greenDelay)
                 {
-                    // Start toggling indicator until pedestrian green
-                    toggling = 1;
-                    toggle_state = 0;
-                    last_toggle_time = button_press_time = current_time;
-                    state = STATE_WAITING;
+                    allowed_axis ^= 1;
+                    last_direction_switch = now;
+                    set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+                }
+
+                handle_red_delay_max(now);
+
+                static uint32_t last_press_check = 0;
+                if (now - last_press_check > DEBOUNCE_TIME)
+                {
+                    last_press_check = now;
+                    // Check pedestrian button (R1.2)
+                    if (HAL_GPIO_ReadPin(PL1_Switch_GPIO_Port, PL1_Switch_Pin) == GPIO_PIN_RESET ||
+                        HAL_GPIO_ReadPin(PL2_Switch_GPIO_Port, PL2_Switch_Pin) == GPIO_PIN_RESET)
+                    {
+                        toggling = 1;
+                        toggle_state = 0;
+                        last_toggle_time = button_press_time = now;
+                        state = STATE_WAITING;
+                    }
                 }
             }
             break;
 
         case STATE_WAITING:
-            // After button pressed, toggle indicator until pedestrian green (R1.2)
-            // Check if we passed pedestrianDelay to start making cars red
-            if (current_time - button_press_time >= pedestrianDelay)
+            // Wait pedestrianDelay, toggle indicator until pedestrian green (R1.2)
+            if (now - button_press_time >= pedestrianDelay)
             {
-                // Move to CARS_TO_RED state to transition cars from green->orange->red
-                state_start_time = current_time;
+                state_start_time = now;
                 state = STATE_CARS_TO_RED;
             }
-
-            // Toggling indicator
-            if (toggling && current_time - last_toggle_time >= toggleFreq)
-            {
-                last_toggle_time = current_time;
-                set_traffic_light(&ctx, ctx.flags ^ PL_Blue_Group);
-                toggle_state ^= 1;
-            }
+            toggle_ped_indicator(now);
             break;
 
         case STATE_CARS_TO_RED:
-            // Transition cars from green->orange->red (R1.3 & R1.6)
-            // Also continue toggling indicator since pedestrian isn't green yet
-            if (toggling && current_time - last_toggle_time >= toggleFreq)
             {
-                last_toggle_time = current_time;
-                set_traffic_light(&ctx, ctx.flags ^ PL_Blue_Group);
-                toggle_state ^= 1;
-            }
+                // Cars green->orange->red (R1.3 & R1.6), toggle indicator
+                toggle_ped_indicator(now);
+                uint32_t elapsed = now - state_start_time;
+                if (elapsed < orangeDelay)
+                {
+                    set_traffic_light(&ctx, ctx.flags & ~TL_Green_Group | TL_Orange_Group | PL_Red_Group);
+                }
+                else
+                {
+                    set_traffic_light(&ctx, ctx.flags & ~(TL_Green_Group | TL_Orange_Group) | TL_Red_Group);
 
-            if (handle_car_transition(current_time, state_start_time, 1, orangeDelay))
-            {
-                // Cars are now red
-                // Now we can turn pedestrian green (R1.4)
-                set_traffic_light(&ctx, ctx.flags & ~PL_Red_Group | PL_Green_Group);
-                // Pedestrian is green, stop toggling (R1.2 fulfilled)
-                toggling = 0;
-                // Start timer for walkingDelay
-                state_start_time = current_time;
-                state = STATE_PEDESTRIAN_GREEN;
+                    // Cars now red, pedestrian green (R1.4)
+                    set_traffic_light(&ctx, (ctx.flags & ~PL_Red_Group) | PL_Green_Group);
+                    toggling = 0;
+                    state_start_time = now;
+                    state = STATE_PEDESTRIAN_GREEN;
+                }
             }
             break;
 
         case STATE_PEDESTRIAN_GREEN:
-            // Ped green for walkingDelay ms (R1.4)
-            if (current_time - state_start_time >= walkingDelay)
+            // Ped green for walkingDelay (R1.4)
+            if (now - state_start_time >= walkingDelay)
             {
-                // Time to go back to cars green, which means cars: red->orange->green
-                // Ped must turn red again as cars move away from red (R1.5)
-                set_traffic_light(&ctx, ctx.flags & ~PL_Green_Group | PL_Red_Group);
-                state_start_time = current_time;
+                // Return ped red, cars red->orange->green (R1.5 & R1.6)
+                set_traffic_light(&ctx, (ctx.flags & ~PL_Green_Group) | PL_Red_Group);
+                state_start_time = now;
                 state = STATE_CARS_TO_GREEN;
             }
             break;
 
         case STATE_CARS_TO_GREEN:
-            // Transition cars from red->orange->green (R1.6)
-            if (handle_car_transition(current_time, state_start_time, 0, orangeDelay))
+            // Cars red->orange->green (R1.6)
             {
-                // Cars now green, ped red as required
-                // Return to idle state
-                state = STATE_IDLE;
+                uint32_t elapsed = now - state_start_time;
+                if (elapsed < orangeDelay)
+                {
+                    set_traffic_light(&ctx, ctx.flags & ~TL_Red_Group | TL_Orange_Group | PL_Red_Group);
+                }
+                else
+                {
+                    set_traffic_light(
+                        &ctx, ctx.flags & ~(TL_Red_Group | TL_Orange_Group) | TL_Green_Group | PL_Red_Group);
+                    set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+                    state = STATE_IDLE;
+                }
             }
             break;
         }
 
         /* USER CODE END WHILE */
         /* USER CODE BEGIN 3 */
+        // Additional user code if needed
+        /* USER CODE END 3 */
     }
-    /* USER CODE END 3 */
 }
 
 /**
