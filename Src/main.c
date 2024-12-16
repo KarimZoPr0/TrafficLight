@@ -65,13 +65,17 @@ static uint32_t greenDelay = 4000; // R2.4
 static uint32_t redDelayMax = 5000; // R2.6
 
 // Directions: 0 = vertical, 1 = horizontal
-static int allowed_axis = 0;
+static uint8_t allowed_axis = 0;
 static uint32_t last_direction_switch = 0;
-static uint32_t axis_table[2] = {TL_Vertical_Group, TL_Horizontal_Group};
+static const uint32_t axis_group_table[2] = {TL_Vertical_Group, TL_Horizontal_Group};
+static const uint32_t allowed_green[2] = {TL_Vertical_Green, TL_Horizontal_Green};
+static const uint32_t allowed_orange[2] = {TL_Vertical_Orange, TL_Horizontal_Orange};
+static const uint32_t allowed_red[2] = {TL_Vertical_Red, TL_Horizontal_Red};
+static uint32_t pl_blue_table[2] = {PL1_Blue, PL2_Blue};
 
 // Car activity
-static int active_vertical_cars = 0;
-static int active_horizontal_cars = 0;
+static uint8_t active_vertical_cars = 0;
+static uint8_t active_horizontal_cars = 0;
 
 // State machine
 static traffic_state_t state = STATE_IDLE;
@@ -79,6 +83,7 @@ static uint32_t button_press_time = 0;
 static uint32_t last_toggle_time = 0;
 static uint32_t toggle_state = 0;
 static uint32_t toggling = 0;
+static uint8_t pl_side = 0;
 static uint32_t state_start_time = 0;
 /* USER CODE END PV */
 
@@ -87,22 +92,34 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
 // Toggle pedestrian indicator
-static void toggle_ped_indicator(uint32_t now)
+static void toggle_ped_indicator(uint32_t now, uint32_t flag)
 {
     if (toggling && now - last_toggle_time >= toggleFreq)
     {
         last_toggle_time = now;
-        set_traffic_light(&ctx, ctx.flags ^ PL_Blue_Group);
+        set_traffic_light(&ctx, ctx.flags ^ flag);
         toggle_state ^= 1;
     }
 }
+
+GPIO_PinState PL1_Hit()
+{
+    return HAL_GPIO_ReadPin(PL1_Switch_GPIO_Port, PL1_Switch_Pin) == GPIO_PIN_RESET;
+}
+
+GPIO_PinState PL2_Hit()
+{
+    return HAL_GPIO_ReadPin(PL2_Switch_GPIO_Port, PL2_Switch_Pin) == GPIO_PIN_RESET;
+}
+
 
 // Handle redDelayMax (R2.6,R2.7)
 static void handle_red_delay_max(uint32_t now)
 {
     static uint32_t red_wait_start = 0;
-    int allowed_cars = (allowed_axis == 0) ? active_vertical_cars : active_horizontal_cars;
-    int disallowed_cars = (allowed_axis == 0) ? active_horizontal_cars : active_vertical_cars;
+    uint8_t active_axis_cars_table[2] = {active_vertical_cars, active_horizontal_cars};
+    uint8_t allowed_cars = active_axis_cars_table[allowed_axis];
+    uint8_t disallowed_cars = active_axis_cars_table[allowed_axis ^ 1];
 
     // If no cars in the disallowed direction, no waiting needed
     if (!disallowed_cars)
@@ -117,7 +134,7 @@ static void handle_red_delay_max(uint32_t now)
     {
         allowed_axis ^= 1;
         last_direction_switch = now;
-        set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+        set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
         red_wait_start = 0;
         return;
     }
@@ -132,7 +149,7 @@ static void handle_red_delay_max(uint32_t now)
     {
         allowed_axis ^= 1;
         last_direction_switch = now;
-        set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+        set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
         red_wait_start = 0;
     }
 }
@@ -158,6 +175,8 @@ int main(void)
     set_traffic_light(&ctx, TL_Vertical_Group | PL_Red_Group); // vertical green, ped red
     allowed_axis = 0;
     last_direction_switch = HAL_GetTick();
+    uint32_t pl_red_table[2] = {PL1_Red, PL2_Red};
+    uint32_t pl_green_table[2] = {PL1_Green, PL2_Green};
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -185,7 +204,7 @@ int main(void)
                 {
                     allowed_axis ^= 1;
                     last_direction_switch = now;
-                    set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+                    set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
                 }
 
                 handle_red_delay_max(now);
@@ -194,14 +213,13 @@ int main(void)
                 if (now - last_press_check > DEBOUNCE_TIME)
                 {
                     last_press_check = now;
-                    // Check pedestrian button (R1.2)
-                    if (HAL_GPIO_ReadPin(PL1_Switch_GPIO_Port, PL1_Switch_Pin) == GPIO_PIN_RESET ||
-                        HAL_GPIO_ReadPin(PL2_Switch_GPIO_Port, PL2_Switch_Pin) == GPIO_PIN_RESET)
+                    if (PL1_Hit() || PL2_Hit())
                     {
                         toggling = 1;
                         toggle_state = 0;
                         last_toggle_time = button_press_time = now;
                         state = STATE_WAITING;
+                        pl_side = PL2_Hit(); // 1 if true, else 0
                     }
                 }
             }
@@ -214,24 +232,26 @@ int main(void)
                 state_start_time = now;
                 state = STATE_CARS_TO_RED;
             }
-            toggle_ped_indicator(now);
+
+            toggle_ped_indicator(now, pl_blue_table[pl_side]);
             break;
 
         case STATE_CARS_TO_RED:
             {
                 // Cars green->orange->red (R1.3 & R1.6), toggle indicator
-                toggle_ped_indicator(now);
+                toggle_ped_indicator(now, pl_blue_table[pl_side]);
                 uint32_t elapsed = now - state_start_time;
                 if (elapsed < orangeDelay)
                 {
-                    set_traffic_light(&ctx, ctx.flags & ~TL_Green_Group | TL_Orange_Group | PL_Red_Group);
+                    // Only allowed direction should show orange
+                    set_traffic_light(&ctx, ctx.flags & ~allowed_green[allowed_axis] | allowed_orange[allowed_axis] | PL_Red_Group);
                 }
                 else
                 {
                     set_traffic_light(&ctx, ctx.flags & ~(TL_Green_Group | TL_Orange_Group) | TL_Red_Group);
 
                     // Cars now red, pedestrian green (R1.4)
-                    set_traffic_light(&ctx, (ctx.flags & ~PL_Red_Group) | PL_Green_Group);
+                    set_traffic_light(&ctx, ctx.flags & ~pl_red_table[pl_side] | pl_green_table[pl_side]);
                     toggling = 0;
                     state_start_time = now;
                     state = STATE_PEDESTRIAN_GREEN;
@@ -244,7 +264,7 @@ int main(void)
             if (now - state_start_time >= walkingDelay)
             {
                 // Return ped red, cars red->orange->green (R1.5 & R1.6)
-                set_traffic_light(&ctx, (ctx.flags & ~PL_Green_Group) | PL_Red_Group);
+                set_traffic_light(&ctx, ctx.flags & ~PL_Green_Group | PL_Red_Group);
                 state_start_time = now;
                 state = STATE_CARS_TO_GREEN;
             }
@@ -256,13 +276,13 @@ int main(void)
                 uint32_t elapsed = now - state_start_time;
                 if (elapsed < orangeDelay)
                 {
-                    set_traffic_light(&ctx, ctx.flags & ~TL_Red_Group | TL_Orange_Group | PL_Red_Group);
+                    set_traffic_light(&ctx, ctx.flags & ~allowed_red[allowed_axis] | allowed_orange[allowed_axis] | PL_Red_Group);
                 }
                 else
                 {
-                    set_traffic_light(
-                        &ctx, ctx.flags & ~(TL_Red_Group | TL_Orange_Group) | TL_Green_Group | PL_Red_Group);
-                    set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_table[allowed_axis] | PL_Red_Group);
+
+                    set_traffic_light(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
+                    last_direction_switch = now;
                     state = STATE_IDLE;
                 }
             }

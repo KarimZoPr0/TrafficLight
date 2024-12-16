@@ -39,29 +39,41 @@ enum street_direction_flags_t
 
 enum street_direction_groups_t
 {
-    // Individual groups
+    // Individual direction groups
     TL1_Group = TL1_Red | TL1_Yellow | TL1_Green,
     TL2_Group = TL2_Red | TL2_Yellow | TL2_Green,
     TL3_Group = TL3_Red | TL3_Yellow | TL3_Green,
     TL4_Group = TL4_Red | TL4_Yellow | TL4_Green,
+
     PL1_Group = PL1_Red | PL1_Blue | PL1_Green,
     PL2_Group = PL2_Red | PL2_Blue | PL2_Green,
 
-    // Color groups for pedestrians
+    // Pedestrian color groups
     PL_Red_Group   = PL1_Red | PL2_Red,
     PL_Green_Group = PL1_Green | PL2_Green,
     PL_Blue_Group  = PL1_Blue | PL2_Blue,
 
-    // Color groups for traffic lights
+    // Traffic light color groups
     TL_Red_Group    = TL1_Red | TL2_Red | TL3_Red | TL4_Red,
     TL_Orange_Group = TL1_Yellow | TL2_Yellow | TL3_Yellow | TL4_Yellow,
     TL_Green_Group  = TL1_Green | TL2_Green | TL3_Green | TL4_Green,
 
-    // direction groups for traffic lights
-    TL_Vertical_Group   = TL1_Green | TL3_Green | TL2_Red | TL4_Red,
-    TL_Horizontal_Group = TL2_Green | TL4_Green | TL1_Red | TL3_Red,
+    // Vertical and horizontal groups by color
+    TL_Vertical_Green  = TL1_Green | TL3_Green,
+    TL_Vertical_Orange = TL1_Yellow | TL3_Yellow,
+    TL_Vertical_Red    = TL1_Red | TL3_Red,
 
-    // All traffic lights and pedestrian lights
+    // Horizontal direction uses TL2 and TL4 as green directions, TL1 and TL3 stay red when horizontal is allowed
+    TL_Horizontal_Green  = TL2_Green | TL4_Green,
+    TL_Horizontal_Orange = TL2_Yellow | TL4_Yellow,
+    TL_Horizontal_Red    = TL2_Red | TL4_Red,
+
+    // When vertical direction is allowed: vertical green + horizontal red
+    TL_Vertical_Group   = TL_Vertical_Green | TL_Horizontal_Red,
+    // When horizontal direction is allowed: horizontal green + vertical red
+    TL_Horizontal_Group = TL_Horizontal_Green | TL_Vertical_Red,
+
+    // All traffic lights and pedestrian lights combined
     TL_Group = TL1_Group | TL2_Group | TL3_Group | TL4_Group,
     PL_Group = PL1_Group | PL2_Group
 };
@@ -82,6 +94,8 @@ struct traffic_light_context_t
     street_direction_flags_t flags;
     uint8_t data[3];
 };
+
+void TrafficLight(void);
 
 
 void set_traffic_light(traffic_light_context_t *ctx, uint32_t flags);
