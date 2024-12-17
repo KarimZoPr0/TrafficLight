@@ -9,16 +9,16 @@ void TrafficLight(void)
     uint8_t allowed_axis = 0;
     uint32_t last_direction_switch = HAL_GetTick();
 
-    // Color Tables
-    const uint32_t axis_group_table[2] = {TL_Vertical_Group, TL_Horizontal_Group};
+    // Direction Tables
+    const uint32_t axis_group_table[] = {TL_Vertical_Group, TL_Horizontal_Group};
 
-    const uint32_t allowed_green_table[2] = {TL_Vertical_Green, TL_Horizontal_Green};
-    const uint32_t allowed_orange_table[2] = {TL_Vertical_Orange, TL_Horizontal_Orange};
-    const uint32_t allowed_red_table[2] = {TL_Vertical_Red, TL_Horizontal_Red};
+    const uint32_t allowed_green_table[] = {TL_Vertical_Green, TL_Horizontal_Green};
+    const uint32_t allowed_orange_table[] = {TL_Vertical_Orange, TL_Horizontal_Orange};
+    const uint32_t allowed_red_table[] = {TL_Vertical_Red, TL_Horizontal_Red};
 
-    const uint32_t pl_red_table[2] = {PL1_Red, PL1_Red};
-    const uint32_t pl_green_table[2] = {PL1_Green, PL1_Green};
-    const uint32_t pl_blue_table[2] = {PL1_Blue, PL2_Blue};
+    const uint32_t pl_red_table[] = {PL1_Red, PL2_Red};
+    const uint32_t pl_green_table[] = {PL1_Green, PL2_Green};
+    const uint32_t pl_blue_table[] = {PL1_Blue, PL2_Blue};
 
     // Car activity
     uint8_t active_vertical_cars = 0;
@@ -50,12 +50,13 @@ void TrafficLight(void)
         {
         case STATE_IDLE:
             {
-                // Switch direction if_needed
-                if (!active_vertical_cars && !active_horizontal_cars && now - last_direction_switch >= greenDelay)
+                // Switch direction if needed
+                if (!active_vertical_cars && !active_horizontal_cars && now - last_direction_switch >= GREEN_DELAY)
                 {
                     allowed_axis ^= 1;
                     last_direction_switch = now;
-                    transmit_traffic_light_flags(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
+                    transmit_traffic_light_flags(
+                        &ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
                 }
 
                 // Handle redDelayMax (R2.6,R2.7)
@@ -77,7 +78,8 @@ void TrafficLight(void)
                         {
                             allowed_axis ^= 1;
                             last_direction_switch = now;
-                            transmit_traffic_light_flags(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
+                            transmit_traffic_light_flags(
+                                &ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
                             red_wait_start = 0;
                         }
                         else
@@ -89,11 +91,12 @@ void TrafficLight(void)
                             }
                             else
                             {
-                                if (now - red_wait_start >= redDelayMax)
+                                if (now - red_wait_start >= RED_DELAY_MAX)
                                 {
                                     allowed_axis ^= 1;
                                     last_direction_switch = now;
-                                    transmit_traffic_light_flags(&ctx, (ctx.flags & ~TL_Group) | axis_group_table[allowed_axis] | PL_Red_Group);
+                                    transmit_traffic_light_flags(
+                                        &ctx, (ctx.flags & ~TL_Group) | axis_group_table[allowed_axis] | PL_Red_Group);
                                     red_wait_start = 0;
                                 }
                             }
@@ -110,7 +113,7 @@ void TrafficLight(void)
                         ctx.toggling = 1;
                         ctx.last_toggle_time = button_press_time = now;
                         state = STATE_WAITING;
-                        pl_side = PL2_Hit(); // 1 if true, else 0
+                        pl_side = PL2_Hit();
                     }
                 }
             }
@@ -118,7 +121,7 @@ void TrafficLight(void)
 
         case STATE_WAITING:
             // Wait pedestrianDelay, toggle indicator until pedestrian green (R1.2)
-            if (now - button_press_time >= pedestrianDelay)
+            if (now - button_press_time >= PEDESTRIAN_DELAY)
             {
                 state_start_time = now;
                 state = STATE_CARS_TO_RED;
@@ -132,10 +135,12 @@ void TrafficLight(void)
                 // Cars green->orange->red (R1.3 & R1.6), toggle indicator
                 toggle_ped_indicator(&ctx, pl_blue_table[pl_side], now);
                 uint32_t elapsed = now - state_start_time;
-                if (elapsed < orangeDelay)
+                if (elapsed < ORANGE_DELAY)
                 {
                     // Only allowed direction should show orange
-                    transmit_traffic_light_flags(&ctx, ctx.flags & ~allowed_green_table[allowed_axis] | allowed_orange_table[allowed_axis] | PL_Red_Group);
+                    transmit_traffic_light_flags(
+                        &ctx, ctx.flags & ~allowed_green_table[allowed_axis] | allowed_orange_table[allowed_axis] |
+                        PL_Red_Group);
                 }
                 else
                 {
@@ -152,7 +157,7 @@ void TrafficLight(void)
 
         case STATE_PEDESTRIAN_GREEN:
             // Ped green for walkingDelay (R1.4)
-            if (now - state_start_time >= walkingDelay)
+            if (now - state_start_time >= WALKING_DELAY)
             {
                 // Return ped red, cars red->orange->green (R1.5 & R1.6)
                 transmit_traffic_light_flags(&ctx, ctx.flags & ~PL_Green_Group | PL_Red_Group);
@@ -165,20 +170,21 @@ void TrafficLight(void)
             // Cars red->orange->green (R1.6)
             {
                 uint32_t elapsed = now - state_start_time;
-                if (elapsed < orangeDelay)
+                if (elapsed < ORANGE_DELAY)
                 {
-                    transmit_traffic_light_flags(&ctx, ctx.flags & ~allowed_red_table[allowed_axis] | allowed_orange_table[allowed_axis] | PL_Red_Group);
+                    transmit_traffic_light_flags(
+                        &ctx, ctx.flags & ~allowed_red_table[allowed_axis] | allowed_orange_table[allowed_axis] |
+                        PL_Red_Group);
                 }
                 else
                 {
-
-                    transmit_traffic_light_flags(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
+                    transmit_traffic_light_flags(
+                        &ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
                     last_direction_switch = now;
                     state = STATE_IDLE;
                 }
             }
             break;
         }
-
     }
 }

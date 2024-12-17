@@ -9,5 +9,6 @@
 #include <trafficlight_functions.h>
 
 void test_program(void);
+void test_transmit_traffic_light_flags(void);
 
 #endif //TEST_H

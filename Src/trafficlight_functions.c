@@ -38,7 +38,7 @@ GPIO_PinState PL2_Hit()
 // Toggle pedestrian indicator
 void toggle_ped_indicator(traffic_light_context_t* ctx, uint32_t flag, uint32_t now)
 {
-    if (ctx->toggling && now - ctx->last_toggle_time >= toggleFreq)
+    if (ctx->toggling && now - ctx->last_toggle_time >= TOGGLE_FREQ)
     {
         ctx->last_toggle_time = now;
         transmit_traffic_light_flags(ctx, ctx->flags ^ flag);

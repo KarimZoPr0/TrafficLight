@@ -6,22 +6,6 @@
   ******************************************************************************
   * @attention
   *
-  * This code implements:
-  * - Task 1 (R1.1–R1.6): Pedestrian crossing with toggle indicator.
-  * - Task 2 (R2.1–R2.8): Road crossing logic (vertical/horizontal lanes), timing.
-  *
-  * Initialization (R1.1 + R2.8):
-  * - Ped red, vertical green, horizontal red.
-  *
-  * Pedestrian request:
-  * - Indicator toggle (R1.2), after pedestrianDelay cars red (R1.3), ped green (R1.4).
-  * - After walkingDelay, cars green again (R1.5, R1.6).
-  *
-  * Idle (no ped):
-  * - If no cars, switch allowed direction every greenDelay (R2.4).
-  * - If car waits at red, either wait redDelayMax or switch immediately if no cars on allowed side (R2.6,R2.7).
-  * - Only one direction green (R2.2), no left turns scenario (R2.1).
-  * - Remain green if cars active (R2.5).
   *
   ******************************************************************************
   */
@@ -45,7 +29,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-// #define RUN_TEST_PROGRAM
+//#define RUN_TEST_PROGRAM
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -81,7 +65,7 @@ int main(void)
     /* USER CODE BEGIN 2 */
 #ifdef RUN_TEST_PROGRAM
 #include "trafficlight.h"
-    Test_Program();
+    test_program();
 #else
     TrafficLight();
 #endif

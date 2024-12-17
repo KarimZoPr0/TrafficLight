@@ -75,7 +75,9 @@ enum street_direction_groups_t
 
     // All traffic lights and pedestrian lights combined
     TL_Group = TL1_Group | TL2_Group | TL3_Group | TL4_Group,
-    PL_Group = PL1_Group | PL2_Group
+    PL_Group = PL1_Group | PL2_Group,
+
+    ALL_Group = TL_Group | PL_Group
 };
 
 typedef enum traffic_state_t traffic_state_t;
@@ -115,12 +117,12 @@ void transmit_traffic_light_flags(traffic_light_context_t *ctx, uint32_t flags);
 #define DEBOUNCE_TIME 50
 
 // Timings
-#define toggleFreq      250  // R1.2
-#define pedestrianDelay 3000 // R1.3
-#define walkingDelay    5000 // R1.4
-#define orangeDelay     3000 // R1.6
-#define greenDelay      4000 // R2.4
-#define redDelayMax     5000 // R2.6
+#define TOGGLE_FREQ      250  // R1.2
+#define PEDESTRIAN_DELAY 3000 // R1.3
+#define WALKING_DELAY    5000 // R1.4
+#define ORANGE_DELAY     3000 // R1.6
+#define GREEN_DELAY      4000 // R2.4
+#define RED_DELAY_MAX    5000 // R2.6
 
 
 #endif //TRAFFICLIGHT_FUNCTIONS_H
