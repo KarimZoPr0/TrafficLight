@@ -8,6 +8,7 @@
 #include "spi.h"
 
 typedef uint32_t street_direction_flags_t;
+
 enum street_direction_flags_t
 {
     // Street direction 1
@@ -70,6 +71,7 @@ enum street_direction_groups_t
 
     // When vertical direction is allowed: vertical green + horizontal red
     TL_Vertical_Group = TL_Vertical_Green | TL_Horizontal_Red,
+
     // When horizontal direction is allowed: horizontal green + vertical red
     TL_Horizontal_Group = TL_Horizontal_Green | TL_Vertical_Red,
 
@@ -103,6 +105,8 @@ struct traffic_light_context_t
     uint32_t last_toggle_time;
 
     uint8_t data[3];
+
+    uint32_t now;
 };
 
 GPIO_PinState TL1_Car_Hit();
@@ -111,8 +115,10 @@ GPIO_PinState TL2_Car_Hit();
 GPIO_PinState TL4_Car_Hit();
 GPIO_PinState PL1_Hit();
 GPIO_PinState PL2_Hit();
-void toggle_ped_indicator(traffic_light_context_t *ctx, uint32_t flag, uint32_t now);
-void transmit_traffic_light_flags(traffic_light_context_t *ctx, uint32_t flags);
+void toggle_ped_indicator(traffic_light_context_t* ctx, uint32_t flag, uint32_t now);
+void transmit_traffic_light_flags(traffic_light_context_t* ctx, uint32_t flags);
+void transition_cars_to_green(traffic_light_context_t* ctx, uint32_t tl_index);
+void transition_cars_to_red(traffic_light_context_t* ctx, uint32_t tl_index);
 
 #define DEBOUNCE_TIME 50
 

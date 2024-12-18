@@ -9,7 +9,7 @@ void TrafficLight(void)
     uint8_t allowed_axis = 0;
     uint32_t last_direction_switch = HAL_GetTick();
 
-    // Direction Tables
+    // Flags table
     const uint32_t axis_group_table[] = {TL_Vertical_Group, TL_Horizontal_Group};
 
     const uint32_t allowed_green_table[] = {TL_Vertical_Green, TL_Horizontal_Green};
@@ -152,6 +152,7 @@ void TrafficLight(void)
                     state_start_time = now;
                     state = STATE_PEDESTRIAN_GREEN;
                 }
+
             }
             break;
 
