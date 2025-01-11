@@ -33,10 +33,7 @@ void traffic_light_sys(void)
     {
         ctx.now = HAL_GetTick();
 
-        uint8_t tl1_active = TL1_Car_Hit();
-        uint8_t tl3_active = TL3_Car_Hit();
-        uint8_t tl2_active = TL2_Car_Hit();
-        uint8_t tl4_active = TL4_Car_Hit();
+
 
         active_vertical_cars = tl1_active || tl3_active;
         active_horizontal_cars = tl2_active || tl4_active;
