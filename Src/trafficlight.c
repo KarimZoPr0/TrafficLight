@@ -51,8 +51,7 @@ void traffic_light_sys(void)
                 {
                     allowed_axis ^= 1;
                     last_direction_switch =ctx.now;
-                    transmit_traffic_light_flags(
-                        &ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
+                    transmit_traffic_light_flags(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
                 }
 
                 // Handle redDelayMax (R2.6,R2.7)

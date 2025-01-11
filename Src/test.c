@@ -166,17 +166,14 @@ void test_handle_cars_to_green(void)
 void test_handle_cars_to_red(void)
 {
     // We’ll test both axes: 0 => vertical is green, 1 => horizontal is green
+
+    const uint32_t axis_group_table[] = {TL_Vertical_Green | TL_Horizontal_Red, TL_Horizontal_Green | TL_Vertical_Red};
+
     for (uint8_t axis = 0; axis < 2; axis++)
     {
         traffic_light_context_t ctx = {0};
 
-        uint32_t start_flags = 0;
-        if (axis == 0)
-            start_flags = (TL_Vertical_Green | TL_Horizontal_Red | PL_Red_Group);
-        else
-            start_flags = (TL_Horizontal_Green | TL_Vertical_Red | PL_Red_Group);
-
-        transmit_traffic_light_flags(&ctx, start_flags);
+        transmit_traffic_light_flags(&ctx, axis_group_table[axis] | PL_Red_Group);
 
         HAL_Delay(1000);
 
