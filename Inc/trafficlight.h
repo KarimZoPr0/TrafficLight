@@ -7,8 +7,6 @@
 
 #include "trafficlight_functions.h"
 
-void TrafficLight(void);
-
-
+void traffic_light_sys(void);
 
 #endif //TRAFFICLIGHT_H

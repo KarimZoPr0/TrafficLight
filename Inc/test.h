@@ -1,5 +1,5 @@
 //
-// Created by Abdik on 2024-12-16.
+// Created by Karim on 2024-12-16.
 //
 
 #ifndef TEST_H
@@ -9,8 +9,10 @@
 #include <trafficlight_functions.h>
 
 void test_program(void);
-void test_buttons(void);
+void test_buttons_and_switches(void);
 void test_transmit_traffic_light_flags(void);
-void test_transition_cars(void);
+void test_toggle_indicator_light(void);
+void test_handle_cars_to_green(void);
+void test_handle_cars_to_red(void);
 
 #endif //TEST_H

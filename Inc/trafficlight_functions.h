@@ -7,6 +7,7 @@
 
 #include "spi.h"
 
+
 typedef uint32_t street_direction_flags_t;
 
 enum street_direction_flags_t
@@ -64,16 +65,9 @@ enum street_direction_groups_t
     TL_Vertical_Orange = TL1_Yellow | TL3_Yellow,
     TL_Vertical_Red = TL1_Red | TL3_Red,
 
-    // Horizontal direction uses TL2 and TL4 as green directions, TL1 and TL3 stay red when horizontal is allowed
     TL_Horizontal_Green = TL2_Green | TL4_Green,
     TL_Horizontal_Orange = TL2_Yellow | TL4_Yellow,
     TL_Horizontal_Red = TL2_Red | TL4_Red,
-
-    // When vertical direction is allowed: vertical green + horizontal red
-    TL_Vertical_Group = TL_Vertical_Green | TL_Horizontal_Red,
-
-    // When horizontal direction is allowed: horizontal green + vertical red
-    TL_Horizontal_Group = TL_Horizontal_Green | TL_Vertical_Red,
 
     // All traffic lights and pedestrian lights combined
     TL_Group = TL1_Group | TL2_Group | TL3_Group | TL4_Group,
@@ -86,26 +80,22 @@ typedef enum traffic_state_t traffic_state_t;
 
 enum traffic_state_t
 {
-    STATE_IDLE, // Cars green, Ped red (initial state)
-    STATE_WAITING, // Button pressed, toggling indicator until pedestrian green
-    STATE_CARS_TO_RED, // Transition cars from green to red (through orange)
-    STATE_PEDESTRIAN_GREEN, // Pedestrian green for walkingDelay
-    STATE_CARS_TO_GREEN // Transition cars from red to green (through orange)
+    STATE_IDLE,
+    STATE_WAITING,
+    STATE_CARS_TO_RED,
+    STATE_PEDESTRIAN_GREEN,
+    STATE_CARS_TO_GREEN
 };
-
 
 typedef struct traffic_light_context_t traffic_light_context_t;
 
 struct traffic_light_context_t
 {
     street_direction_flags_t flags;
-
-    // toggle info
-    uint8_t toggling;
-    uint32_t last_toggle_time;
-
     uint8_t data[3];
 
+    uint8_t toggling;
+    uint32_t last_toggle_time;
     uint32_t now;
 };
 
@@ -115,10 +105,20 @@ GPIO_PinState TL2_Car_Hit();
 GPIO_PinState TL4_Car_Hit();
 GPIO_PinState PL1_Hit();
 GPIO_PinState PL2_Hit();
-void toggle_ped_indicator(traffic_light_context_t* ctx, uint32_t flag, uint32_t now);
 void transmit_traffic_light_flags(traffic_light_context_t* ctx, uint32_t flags);
-void transition_cars_to_green(traffic_light_context_t* ctx, uint32_t tl_index);
-void transition_cars_to_red(traffic_light_context_t* ctx, uint32_t tl_index);
+void toggle_indicator_light(traffic_light_context_t* ctx, uint32_t flags);
+void handle_cars_to_green(
+    traffic_light_context_t* ctx,
+    uint32_t allowed_axis,
+    traffic_state_t* state,
+    uint32_t* last_direction_switch,
+    uint32_t state_start_time);
+void handle_cars_to_red(
+    traffic_light_context_t* ctx,
+    uint32_t allowed_axis,
+    uint8_t  pl_side,
+    traffic_state_t* state,
+    uint32_t* state_start_time);
 
 #define DEBOUNCE_TIME 50
 
@@ -129,6 +129,5 @@ void transition_cars_to_red(traffic_light_context_t* ctx, uint32_t tl_index);
 #define ORANGE_DELAY     3000 // R1.6
 #define GREEN_DELAY      4000 // R2.4
 #define RED_DELAY_MAX    5000 // R2.6
-
 
 #endif //TRAFFICLIGHT_FUNCTIONS_H
