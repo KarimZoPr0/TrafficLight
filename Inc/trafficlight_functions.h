@@ -1,5 +1,5 @@
 //
-// Created by Abdik on 2024-12-16.
+// Created by Karim on 2024-12-16.
 //
 
 #ifndef TRAFFICLIGHT_FUNCTIONS_H
@@ -10,6 +10,9 @@
 
 typedef uint32_t street_direction_flags_t;
 
+/**
+ * @brief Enumeration for street direction flags.
+ */
 enum street_direction_flags_t
 {
     // Street direction 1
@@ -39,6 +42,9 @@ enum street_direction_flags_t
     TL4_Green = 1 << 21, // U3 Q5
 };
 
+/**
+ * @brief Enumeration for grouping street directions and their respective lights.
+ */
 enum street_direction_groups_t
 {
     // Individual direction groups
@@ -78,6 +84,9 @@ enum street_direction_groups_t
 
 typedef enum traffic_state_t traffic_state_t;
 
+/**
+ * @brief Traffic light states enumeration.
+ */
 enum traffic_state_t
 {
     STATE_IDLE,
@@ -89,45 +98,113 @@ enum traffic_state_t
 
 typedef struct traffic_light_context_t traffic_light_context_t;
 
+/**
+ * @brief Context structure for managing traffic light states and timing.
+ */
 struct traffic_light_context_t
 {
+    /**
+     * Bitmask representing street direction flags.
+     */
     street_direction_flags_t flags;
+    /**
+     * Array to store traffic light state data.
+     */
     uint8_t data[3];
 
+    /**
+     * Indicates if toggling functionality is active.
+     */
     uint8_t toggling;
+    /**
+     * Stores the last timestamp when the toggle action occurred.
+     */
     uint32_t last_toggle_time;
+    /**
+     * Current timestamp in milliseconds.
+     */
     uint32_t now;
 };
 
+/**
+ * @brief Reads the state of the TL1 car switch hit GPIO pin.
+ * @return GPIO_PIN_RESET if the switch is hit, otherwise GPIO_PIN_SET.
+ */
 GPIO_PinState TL1_Car_Hit();
+/**
+ * @brief Checks if the TL3 car switch has been triggered.
+ * @return GPIO_PIN_RESET if the switch is hit, otherwise GPIO_PIN_SET.
+ */
 GPIO_PinState TL3_Car_Hit();
+/**
+ * @brief Checks if the TL2 car switch is hit.
+ * @return GPIO_PIN_RESET if the switch is hit, otherwise GPIO_PIN_SET.
+ */
 GPIO_PinState TL2_Car_Hit();
+/**
+ * @brief Checks if TL4 car switch is hit.
+ * @return GPIO_PIN_RESET if the switch is hit, otherwise GPIO_PIN_SET.
+ */
 GPIO_PinState TL4_Car_Hit();
+/**
+ * @brief Reads the state of the PL1 button.
+ * @return GPIO_PIN_RESET if the button is hit, GPIO_PIN_SET otherwise.
+ */
 GPIO_PinState PL1_Hit();
+/**
+ * @brief Checks if the pedestrian button PL2 is hit.
+ * @return GPIO_PIN_RESET if the button is hit, GPIO_PIN_SET otherwise.
+ */
 GPIO_PinState PL2_Hit();
+/**
+ * @brief Transmits traffic light control flags via SPI.
+ * @param ctx Pointer to the traffic light context structure.
+ * @param flags 32-bit value representing the traffic light control flags.
+ */
 void transmit_traffic_light_flags(traffic_light_context_t* ctx, uint32_t flags);
+/**
+ * @brief Toggles specified lights based on timing and state.
+ * @param ctx Pointer to the traffic light context.
+ * @param flags Street direction flags
+ */
 void toggle_indicator_light(traffic_light_context_t* ctx, uint32_t flags);
+/**
+ * @brief Handles the transition of traffic lights from red to green state.
+ * @param ctx Pointer to the traffic light context structure.
+ * @param allowed_axis Axis identifier representing the direction allowed to proceed.
+ * @param state Pointer to the current traffic light state variable.
+ * @param last_direction_switch Pointer to the timestamp of the last direction switch.
+ * @param state_start_time Start time of the current state.
+ */
 void handle_cars_to_green(
     traffic_light_context_t* ctx,
     uint32_t allowed_axis,
     traffic_state_t* state,
     uint32_t* last_direction_switch,
     uint32_t state_start_time);
+/**
+ * @brief Handles traffic light transition for cars to red and pedestrians to green.
+ * @param ctx Pointer to the traffic light context structure.
+ * @param allowed_axis Indicates the axis currently allowed for vehicle movement.
+ * @param pl_side Specifies the pedestrian light side being handled.
+ * @param state Pointer to the traffic state variable to be updated.
+ * @param state_start_time Pointer to the state start time variable to be updated.
+ */
 void handle_cars_to_red(
     traffic_light_context_t* ctx,
     uint32_t allowed_axis,
-    uint8_t  pl_side,
+    uint8_t pl_side,
     traffic_state_t* state,
     uint32_t* state_start_time);
 
 #define DEBOUNCE_TIME 50
 
 // Timings
-#define TOGGLE_FREQ      250  // R1.2
-#define PEDESTRIAN_DELAY 3000 // R1.3
-#define WALKING_DELAY    5000 // R1.4
-#define ORANGE_DELAY     3000 // R1.6
-#define GREEN_DELAY      4000 // R2.4
-#define RED_DELAY_MAX    5000 // R2.6
+#define TOGGLE_FREQ      250
+#define PEDESTRIAN_DELAY 3000
+#define WALKING_DELAY    5000
+#define ORANGE_DELAY     3000
+#define GREEN_DELAY      4000
+#define RED_DELAY_MAX    5000
 
 #endif //TRAFFICLIGHT_FUNCTIONS_H

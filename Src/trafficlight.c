@@ -1,17 +1,41 @@
 //
-// Created by karim on 2024-12-07.
+// Created by Karim on 2024-12-07.
 
 #include "trafficlight.h"
 
-// Flags table
+/**
+ * Axis group table storing the traffic light configurations for different axes.
+ * Each element represents a combination of vertical and horizontal light states.
+ */
 const uint32_t axis_group_table[] = {TL_Vertical_Green | TL_Horizontal_Red, TL_Horizontal_Green | TL_Vertical_Red};
+/**
+ * Allowed green table specifying valid green light states for traffic lights.
+ * Each entry corresponds to an allowable green light configuration.
+ */
 const uint32_t allowed_green_table[] = {TL_Vertical_Green, TL_Horizontal_Green};
+/**
+ * Array containing allowed orange traffic light states.
+ */
 const uint32_t allowed_orange_table[] = {TL_Vertical_Orange, TL_Horizontal_Orange};
+/**
+ * Array of allowed red light states for traffic light control.
+ */
 const uint32_t allowed_red_table[] = {TL_Vertical_Red, TL_Horizontal_Red};
+/**
+ * Predefined table containing red light states for parking lot traffic signals.
+ */
 const uint32_t pl_red_table[] = {PL1_Red, PL2_Red};
+/** Array of green phase indicators for traffic lights. */
 const uint32_t pl_green_table[] = {PL1_Green, PL2_Green};
+/**
+ * Table for pedestrian light blue states corresponding to two pedestrian sides.
+ * Each element represents the blue light state for a specific side.
+ */
 const uint32_t pl_blue_table[] = {PL1_Blue, PL2_Blue};
 
+/**
+ * @brief Controls the traffic light state machine for cars and pedestrians.
+ */
 void traffic_light_sys(void)
 {
     uint8_t allowed_axis = 0;
@@ -51,11 +75,10 @@ void traffic_light_sys(void)
                 {
                     allowed_axis ^= 1;
                     last_direction_switch =ctx.now;
-                    transmit_traffic_light_flags(
-                        &ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
+                    transmit_traffic_light_flags(&ctx, ctx.flags & ~TL_Group | axis_group_table[allowed_axis] | PL_Red_Group);
                 }
 
-                // Handle redDelayMax (R2.6,R2.7)
+                // Handle redDelayMax
                 {
                     static uint32_t red_wait_start = 0;
                     uint8_t active_axis_cars_table[2] = {active_vertical_cars, active_horizontal_cars};
@@ -116,7 +139,7 @@ void traffic_light_sys(void)
             break;
 
         case STATE_WAITING:
-            // Wait pedestrianDelay, toggle indicator until pedestrian green (R1.2)
+            // Wait pedestrianDelay, toggle indicator until pedestrian green
             if (ctx.now - button_press_time >= PEDESTRIAN_DELAY)
             {
                 state_start_time =ctx.now;
@@ -133,10 +156,10 @@ void traffic_light_sys(void)
             break;
 
         case STATE_PEDESTRIAN_GREEN:
-            // Ped green for walkingDelay (R1.4)
+            // Ped green for walkingDelay
             if (ctx.now - state_start_time >= WALKING_DELAY)
             {
-                // Return ped red, cars red->orange->green (R1.5 & R1.6)
+                // Return ped red, cars red->orange->green
                 transmit_traffic_light_flags(&ctx, ctx.flags & ~PL_Green_Group | PL_Red_Group);
                 state_start_time =ctx.now;
                 state = STATE_CARS_TO_GREEN;
@@ -144,7 +167,7 @@ void traffic_light_sys(void)
             break;
 
         case STATE_CARS_TO_GREEN:
-            // Cars red->orange->green (R1.6)
+            // Cars red->orange->green
             {
                 handle_cars_to_green(&ctx, allowed_axis, &state, &last_direction_switch, state_start_time);
             }

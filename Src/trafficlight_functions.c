@@ -4,45 +4,94 @@
 
 #include "trafficlight_functions.h"
 
-// Flags table
+/**
+ * axis_group_table
+ * Array mapping axis indices to traffic light group states.
+ */
 extern uint32_t axis_group_table[];
+/**
+ * Allowed green traffic light configuration for specific traffic axes.
+ */
 extern uint32_t allowed_green_table[];
+/**
+ * Array representing the allowed traffic light states for the orange phase.
+ */
 extern uint32_t allowed_orange_table[];
+/**
+ * Array defining the allowed red light configurations for each axis.
+ */
 extern uint32_t allowed_red_table[];
+/**
+ * Traffic light red state lookup table.
+ */
 extern uint32_t pl_red_table[];
+/**
+ * External array representing the green traffic light table for pedestrians.
+ */
 extern uint32_t pl_green_table[];
+/** Array representing blue pedestrian light states for different sides. */
 extern uint32_t pl_blue_table[];
 
+/**
+ * @brief Checks if the TL1 car switch is activated.
+ *
+ * @return GPIO_PinState GPIO_PIN_SET if the switch is not activated, GPIO_PIN_RESET if activated.
+ */
 GPIO_PinState TL1_Car_Hit()
 {
     return HAL_GPIO_ReadPin(TL1_Car_GPIO_Port, TL1_Car_Pin) == GPIO_PIN_RESET;
 }
 
+/**
+ * @brief Checks if TL3 car detector is activated.
+ * @return GPIO_PIN_RESET if the detector is activated, GPIO_PIN_SET otherwise.
+ */
 GPIO_PinState TL3_Car_Hit()
 {
     return HAL_GPIO_ReadPin(TL3_Car_GPIO_Port, TL3_Car_Pin) == GPIO_PIN_RESET;
 }
 
+/**
+ * @brief Checks if TL2 car switch is activated.
+ * @return GPIO_PIN_SET if the switch is not activated, GPIO_PIN_RESET if activated.
+ */
 GPIO_PinState TL2_Car_Hit()
 {
     return HAL_GPIO_ReadPin(TL2_Car_GPIO_Port, TL2_Car_Pin) == GPIO_PIN_RESET;
 }
 
+/**
+ * @brief Checks if the TL4_Car GPIO input is active (hit).
+ * @return GPIO_PIN_RESET if the pin is active (hit), otherwise GPIO_PIN_SET.
+ */
 GPIO_PinState TL4_Car_Hit()
 {
     return HAL_GPIO_ReadPin(TL4_Car_GPIO_Port, TL4_Car_Pin) == GPIO_PIN_RESET;
 }
 
+/**
+ * @brief Checks if the PL1 button is pressed.
+ * @return GPIO_PIN_RESET if the PL1 button is pressed, otherwise GPIO_PIN_SET
+ */
 GPIO_PinState PL1_Hit()
 {
     return HAL_GPIO_ReadPin(PL1_Switch_GPIO_Port, PL1_Switch_Pin) == GPIO_PIN_RESET;
 }
 
+/**
+ * @brief Reads the state of the PL2 button.
+ * @return GPIO_PIN_RESET if the PL2 button is pressed, otherwise GPIO_PIN_SET.
+ */
 GPIO_PinState PL2_Hit()
 {
     return HAL_GPIO_ReadPin(PL2_Switch_GPIO_Port, PL2_Switch_Pin) == GPIO_PIN_RESET;
 }
 
+/**
+ * @brief Transmits traffic light control flags via SPI.
+ * @param ctx Pointer to the traffic light context structure.
+ * @param flags 32-bit value representing the traffic light control flags.
+ */
 void transmit_traffic_light_flags(traffic_light_context_t* ctx, uint32_t flags)
 {
     // Store flags
@@ -62,6 +111,12 @@ void transmit_traffic_light_flags(traffic_light_context_t* ctx, uint32_t flags)
 }
 
 
+/**
+ * @brief Toggles the indicator light in a traffic light context based on given flags.
+ *
+ * @param ctx Pointer to the traffic light context structure.
+ * @param flags Bitmask flags indicating which indicator lights to toggle.
+ */
 void toggle_indicator_light(traffic_light_context_t* ctx, uint32_t flags)
 {
     const uint32_t valid_flags = PL1_Blue | PL2_Blue;
@@ -74,6 +129,14 @@ void toggle_indicator_light(traffic_light_context_t* ctx, uint32_t flags)
     }
 }
 
+/**
+ * @brief Handles transition of car traffic lights to red and pedestrian lights to green.
+ * @param ctx Pointer to the traffic light context.
+ * @param allowed_axis Indicates which axis is currently allowed for movement.
+ * @param pl_side Active pedestrian light side.
+ * @param state Pointer to the current traffic state.
+ * @param state_start_time Pointer to the state's start time.
+ */
 void handle_cars_to_red(
     traffic_light_context_t* ctx,
     uint32_t allowed_axis,
@@ -122,6 +185,14 @@ void handle_cars_to_red(
     }
 }
 
+/**
+ * @brief Handles the transition of cars to the green light state.
+ * @param ctx Pointer to the traffic light context.
+ * @param allowed_axis Axis allowed to proceed (e.g., 0 or 1).
+ * @param state Pointer to the current traffic state.
+ * @param last_direction_switch Pointer to the timestamp of the last direction switch.
+ * @param state_start_time Start time of the current state.
+ */
 void handle_cars_to_green(
     traffic_light_context_t* ctx,
     uint32_t allowed_axis,
@@ -129,9 +200,6 @@ void handle_cars_to_green(
     uint32_t* last_direction_switch,
     uint32_t state_start_time)
 {
-    // -----------------------------------------------
-    // EXACT code from your original STATE_CARS_TO_GREEN
-    // -----------------------------------------------
     uint32_t elapsed = ctx->now - state_start_time;
     if (elapsed < ORANGE_DELAY)
     {

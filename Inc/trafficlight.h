@@ -7,6 +7,9 @@
 
 #include "trafficlight_functions.h"
 
+/**
+ * @brief Manages the traffic light system state machine.
+ */
 void traffic_light_sys(void);
 
 #endif //TRAFFICLIGHT_H

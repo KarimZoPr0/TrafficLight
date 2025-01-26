@@ -4,9 +4,9 @@
 
 #include "test.h"
 
-#include <assert.h>
-
-
+/**
+ * @brief Tests the program functionality.
+ */
 void test_program(void)
 {
     //test_transmit_traffic_light_flags();
@@ -15,6 +15,9 @@ void test_program(void)
     test_handle_cars_to_green();
 }
 
+/**
+ * @brief Tests the toggling of the indicator light.
+ */
 void test_toggle_indicator_light()
 {
     traffic_light_context_t ctx = {0};
@@ -33,6 +36,9 @@ void test_toggle_indicator_light()
     }
 }
 
+/**
+ * @brief Tests the functionality of buttons and switches to control traffic lights.
+ */
 void test_buttons_and_switches(void)
 {
     traffic_light_context_t ctx = {0};
@@ -103,6 +109,10 @@ void test_buttons_and_switches(void)
         }
     }
 }
+
+/**
+ * @brief Tests the transmission of traffic light flags.
+ */
 void test_transmit_traffic_light_flags(void)
 {
     traffic_light_context_t ctx = {0};
@@ -133,6 +143,10 @@ void test_transmit_traffic_light_flags(void)
     }
 }
 
+
+/**
+ * @brief Tests the functionality of handling cars transition to green-light.
+ */
 void test_handle_cars_to_green(void)
 {
     traffic_light_context_t ctx = {0};
@@ -163,9 +177,11 @@ void test_handle_cars_to_green(void)
     }
 }
 
+/**
+ * @brief Tests the transition of traffic lights for cars to red.
+ */
 void test_handle_cars_to_red(void)
 {
-    // We’ll test both axes: 0 => vertical is green, 1 => horizontal is green
     for (uint8_t axis = 0; axis < 2; axis++)
     {
         traffic_light_context_t ctx = {0};
